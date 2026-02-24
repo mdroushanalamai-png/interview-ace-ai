@@ -130,6 +130,73 @@ export function useAudioCapture(
     }
   }, [isPaused, onTranscriptChunk, detectQuestion]);
 
+  const startFromStream = useCallback(async (stream: MediaStream) => {
+    try {
+      streamRef.current = stream;
+
+      const { data, error } = await supabase.functions.invoke("elevenlabs-scribe-token");
+      if (error || !data?.token) {
+        throw new Error("Failed to get transcription token");
+      }
+
+      const ws = new WebSocket(
+        `wss://api.elevenlabs.io/v1/speech-to-text/realtime?model_id=scribe_v2_realtime&token=${data.token}&language_code=en`
+      );
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        console.log("Scribe WebSocket connected (remote stream)");
+        const audioCtx = new AudioContext({ sampleRate: 16000 });
+        contextRef.current = audioCtx;
+        const src = audioCtx.createMediaStreamSource(stream);
+        const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+        processorRef.current = processor;
+
+        processor.onaudioprocess = (e) => {
+          if (isPaused || ws.readyState !== WebSocket.OPEN) return;
+          const input = e.inputBuffer.getChannelData(0);
+          const int16 = new Int16Array(input.length);
+          for (let i = 0; i < input.length; i++) {
+            const s = Math.max(-1, Math.min(1, input[i]));
+            int16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+          }
+          const bytes = new Uint8Array(int16.buffer);
+          let binary = "";
+          for (let i = 0; i < bytes.length; i++) {
+            binary += String.fromCharCode(bytes[i]);
+          }
+          ws.send(JSON.stringify({ audio: btoa(binary) }));
+        };
+
+        src.connect(processor);
+        processor.connect(audioCtx.destination);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === "transcript" && msg.data?.text) {
+            onTranscriptChunk(msg.data.text);
+            if (msg.data.is_final) {
+              detectQuestion(msg.data.text);
+            }
+          }
+        } catch (e) {
+          console.error("WS message parse error:", e);
+        }
+      };
+
+      ws.onerror = (e) => console.error("Scribe WS error:", e);
+      ws.onclose = () => console.log("Scribe WS closed");
+
+      setIsCapturing(true);
+      setAudioSource("remote");
+    } catch (e) {
+      console.error("Remote stream capture failed:", e);
+      throw e;
+    }
+  }, [isPaused, onTranscriptChunk, detectQuestion]);
+
   const stopCapture = useCallback(() => {
     wsRef.current?.close();
     processorRef.current?.disconnect();
@@ -147,6 +214,7 @@ export function useAudioCapture(
     audioSource,
     isCapturing,
     startCapture,
+    startFromStream,
     stopCapture,
     setAudioSource,
   };

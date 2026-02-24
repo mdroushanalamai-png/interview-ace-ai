@@ -6,7 +6,7 @@ export interface UserProfile {
   talkingPoints: string;
 }
 
-export type AudioSource = 'microphone' | 'system';
+export type AudioSource = 'microphone' | 'system' | 'remote';
 
 export interface QAEntry {
   id: string;

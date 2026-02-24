@@ -6,13 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { UserProfile, AudioSource } from "@/lib/types";
-import { Mic, Monitor, Zap, Brain, Shield } from "lucide-react";
+import { Mic, Monitor, Zap, Brain, Shield, Smartphone, Laptop } from "lucide-react";
 
 interface SetupPageProps {
   onStart: (profile: UserProfile, audioSource: AudioSource) => void;
+  onMultiDevice: (role: "sender" | "receiver") => void;
 }
 
-export function SetupPage({ onStart }: SetupPageProps) {
+export function SetupPage({ onStart, onMultiDevice }: SetupPageProps) {
   const [profile, setProfile] = useState<UserProfile>({
     name: "",
     resume: "",
@@ -148,6 +149,34 @@ export function SetupPage({ onStart }: SetupPageProps) {
                 ? "You'll be asked to share a browser tab. Make sure to check 'Share tab audio'."
                 : "Uses your microphone to pick up audio from your speakers."}
             </p>
+          </CardContent>
+        </Card>
+
+        {/* Multi-Device Mode */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Multi-Device Mode</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Stream audio from your laptop to your phone over WiFi. The phone transcribes and shows AI answers.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <Button variant="outline" className="h-auto py-4 flex-col gap-2" onClick={() => onMultiDevice("sender")}>
+                <Laptop className="w-6 h-6" />
+                <div className="text-center">
+                  <div className="font-semibold text-sm">Laptop</div>
+                  <div className="text-xs text-muted-foreground">Send audio</div>
+                </div>
+              </Button>
+              <Button variant="outline" className="h-auto py-4 flex-col gap-2" onClick={() => onMultiDevice("receiver")}>
+                <Smartphone className="w-6 h-6" />
+                <div className="text-center">
+                  <div className="font-semibold text-sm">Phone</div>
+                  <div className="text-xs text-muted-foreground">Receive & process</div>
+                </div>
+              </Button>
+            </div>
           </CardContent>
         </Card>
 

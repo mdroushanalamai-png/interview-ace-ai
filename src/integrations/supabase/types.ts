@@ -14,7 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      rooms: {
+        Row: {
+          answer: Json | null
+          code: string
+          created_at: string
+          offer: Json | null
+          receiver_candidates: Json | null
+          sender_candidates: Json | null
+        }
+        Insert: {
+          answer?: Json | null
+          code: string
+          created_at?: string
+          offer?: Json | null
+          receiver_candidates?: Json | null
+          sender_candidates?: Json | null
+        }
+        Update: {
+          answer?: Json | null
+          code?: string
+          created_at?: string
+          offer?: Json | null
+          receiver_candidates?: Json | null
+          sender_candidates?: Json | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
