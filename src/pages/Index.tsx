@@ -1,14 +1,30 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from "react";
+import { SetupPage } from "@/components/SetupPage";
+import { SessionScreen } from "@/components/SessionScreen";
+import { UserProfile, AudioSource } from "@/lib/types";
 
 const Index = () => {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
-    </div>
-  );
+  const [sessionActive, setSessionActive] = useState(false);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [audioSource, setAudioSource] = useState<AudioSource>("microphone");
+
+  const handleStart = (p: UserProfile, source: AudioSource) => {
+    setProfile(p);
+    setAudioSource(source);
+    setSessionActive(true);
+  };
+
+  if (sessionActive && profile) {
+    return (
+      <SessionScreen
+        profile={profile}
+        initialAudioSource={audioSource}
+        onEnd={() => setSessionActive(false)}
+      />
+    );
+  }
+
+  return <SetupPage onStart={handleStart} />;
 };
 
 export default Index;
