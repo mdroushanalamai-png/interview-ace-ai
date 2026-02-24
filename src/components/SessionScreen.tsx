@@ -11,9 +11,10 @@ interface SessionScreenProps {
   profile: UserProfile;
   initialAudioSource: AudioSource;
   onEnd: () => void;
+  remoteStream?: MediaStream;
 }
 
-export function SessionScreen({ profile, initialAudioSource, onEnd }: SessionScreenProps) {
+export function SessionScreen({ profile, initialAudioSource, onEnd, remoteStream }: SessionScreenProps) {
   const [sidePanelOpen, setSidePanelOpen] = useState(true);
   const session = useSession(profile);
 
@@ -34,13 +35,23 @@ export function SessionScreen({ profile, initialAudioSource, onEnd }: SessionScr
   // Start on mount
   useEffect(() => {
     session.startSession();
-    audio.startCapture(initialAudioSource).catch(e => {
-      toast({
-        variant: "destructive",
-        title: "Audio Error",
-        description: e.message || "Failed to start audio capture",
+    if (initialAudioSource === "remote" && remoteStream) {
+      audio.startFromStream(remoteStream).catch(e => {
+        toast({
+          variant: "destructive",
+          title: "Audio Error",
+          description: e.message || "Failed to start remote audio",
+        });
       });
-    });
+    } else {
+      audio.startCapture(initialAudioSource).catch(e => {
+        toast({
+          variant: "destructive",
+          title: "Audio Error",
+          description: e.message || "Failed to start audio capture",
+        });
+      });
+    }
 
     return () => {
       audio.stopCapture();
