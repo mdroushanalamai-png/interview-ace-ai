@@ -13,7 +13,7 @@ import { toast } from "@/hooks/use-toast";
 import { ThemeToggle } from "./ThemeToggle";
 
 interface SetupPageProps {
-  onStart: (profile: UserProfile, audioSource: AudioSource, mode: SessionMode) => void;
+  onStart: (profile: UserProfile, audioSource: AudioSource, mode: SessionMode, stream?: MediaStream) => void;
   onMultiDevice: (role: "sender" | "receiver") => void;
 }
 
@@ -28,7 +28,36 @@ export function SetupPage({ onStart, onMultiDevice }: SetupPageProps) {
   const [step, setStep] = useState(0); // 0=profile, 1=config
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleStart = () => onStart(profile, audioSource, sessionMode);
+  const [isCapturing, setIsCapturing] = useState(false);
+
+  const handleStart = async () => {
+    if (audioSource === "system") {
+      try {
+        setIsCapturing(true);
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: true,
+        });
+        // Stop video tracks - we only need audio
+        stream.getVideoTracks().forEach(t => t.stop());
+        const audioTracks = stream.getAudioTracks();
+        if (audioTracks.length === 0) {
+          throw new Error("No audio captured. Make sure to check 'Share tab audio' when selecting the tab.");
+        }
+        onStart(profile, audioSource, sessionMode, new MediaStream(audioTracks));
+      } catch (e: any) {
+        setIsCapturing(false);
+        if (e.name === "NotAllowedError") {
+          toast({ variant: "destructive", title: "Cancelled", description: "Tab sharing was cancelled. Please try again and select a tab with audio." });
+        } else {
+          toast({ variant: "destructive", title: "Audio Capture Failed", description: e.message || "Could not capture tab audio. Make sure to share a Chrome tab with 'Share tab audio' checked." });
+        }
+        return;
+      }
+    } else {
+      onStart(profile, audioSource, sessionMode);
+    }
+  };
 
   const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
