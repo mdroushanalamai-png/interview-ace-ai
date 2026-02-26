@@ -46,6 +46,7 @@ export function ReceiverPage({ onBack }: ReceiverPageProps) {
       <SessionScreen
         profile={profile}
         initialAudioSource="remote"
+        mode="interview"
         onEnd={() => {
           cleanup();
           setSessionStarted(false);

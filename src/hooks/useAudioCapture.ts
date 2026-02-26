@@ -5,7 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 export function useAudioCapture(
   onTranscriptChunk: (text: string) => void,
   onQuestionDetected: (question: string) => void,
-  isPaused: boolean
+  isPaused: boolean,
+  autoDetectAll: boolean = false
 ) {
   const [audioSource, setAudioSource] = useState<AudioSource>("microphone");
   const [isCapturing, setIsCapturing] = useState(false);
@@ -28,13 +29,18 @@ export function useAudioCapture(
 
     // Check if we have a complete sentence
     if (/[.?!]$/.test(trimmed) || trimmed.length > 150) {
-      const isQuestion = questionPatterns.some(p => p.test(trimmed));
-      if (isQuestion) {
+      if (autoDetectAll) {
+        // Solo mode: treat every utterance as a question
         onQuestionDetected(trimmed);
+      } else {
+        const isQuestion = questionPatterns.some(p => p.test(trimmed));
+        if (isQuestion) {
+          onQuestionDetected(trimmed);
+        }
       }
       sentenceBuffer.current = "";
     }
-  }, [onQuestionDetected]);
+  }, [onQuestionDetected, autoDetectAll]);
 
   const startCapture = useCallback(async (source: AudioSource) => {
     try {
