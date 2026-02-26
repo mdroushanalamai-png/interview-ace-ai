@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,35 +6,26 @@
 
 @layer base {
   :root {
-    --background: 220 20% 97%;
-    --foreground: 220 25% 10%;
-
+    --background: 0 0% 98%;
+    --foreground: 240 10% 8%;
     --card: 0 0% 100%;
-    --card-foreground: 220 25% 10%;
-
+    --card-foreground: 240 10% 8%;
     --popover: 0 0% 100%;
-    --popover-foreground: 220 25% 10%;
-
-    --primary: 185 100% 50%;
-    --primary-foreground: 220 30% 5%;
-
-    --secondary: 220 20% 92%;
-    --secondary-foreground: 220 25% 10%;
-
-    --muted: 220 15% 94%;
-    --muted-foreground: 220 10% 46%;
-
-    --accent: 265 90% 60%;
-    --accent-foreground: 265 90% 95%;
-
+    --popover-foreground: 240 10% 8%;
+    --primary: 250 95% 64%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 6% 93%;
+    --secondary-foreground: 240 10% 8%;
+    --muted: 240 6% 94%;
+    --muted-foreground: 240 5% 46%;
+    --accent: 170 80% 45%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-
-    --border: 220 15% 88%;
-    --input: 220 15% 88%;
-    --ring: 185 100% 50%;
-
-    --radius: 0.75rem;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 250 95% 64%;
+    --radius: 0.875rem;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -43,59 +34,48 @@
     --sidebar-accent: 240 4.8% 95.9%;
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 250 95% 64%;
 
-    --teleprompter-bg: 220 30% 5%;
-    --teleprompter-text: 185 40% 90%;
-    --teleprompter-question: 185 100% 50%;
-    --teleprompter-muted: 220 15% 40%;
-
-    --glow-primary: 185 100% 50%;
-    --glow-accent: 265 90% 60%;
+    --teleprompter-bg: 240 15% 6%;
+    --teleprompter-text: 220 20% 92%;
+    --teleprompter-question: 250 95% 72%;
+    --teleprompter-muted: 240 8% 40%;
   }
 
   .dark {
-    --background: 225 30% 4%;
-    --foreground: 210 20% 90%;
-
-    --card: 225 30% 7%;
-    --card-foreground: 210 20% 90%;
-
-    --popover: 225 30% 7%;
-    --popover-foreground: 210 20% 90%;
-
-    --primary: 185 100% 50%;
-    --primary-foreground: 220 30% 5%;
-
-    --secondary: 225 25% 12%;
-    --secondary-foreground: 210 20% 90%;
-
-    --muted: 225 25% 12%;
-    --muted-foreground: 220 15% 50%;
-
-    --accent: 265 90% 60%;
-    --accent-foreground: 265 90% 95%;
-
+    --background: 240 12% 5%;
+    --foreground: 220 15% 92%;
+    --card: 240 12% 8%;
+    --card-foreground: 220 15% 92%;
+    --popover: 240 12% 8%;
+    --popover-foreground: 220 15% 92%;
+    --primary: 250 95% 64%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 10% 14%;
+    --secondary-foreground: 220 15% 92%;
+    --muted: 240 10% 14%;
+    --muted-foreground: 240 8% 50%;
+    --accent: 170 80% 45%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 100%;
+    --border: 240 10% 15%;
+    --input: 240 10% 15%;
+    --ring: 250 95% 64%;
 
-    --border: 225 25% 14%;
-    --input: 225 25% 14%;
-    --ring: 185 100% 50%;
+    --sidebar-background: 240 12% 7%;
+    --sidebar-foreground: 220 15% 92%;
+    --sidebar-primary: 250 95% 64%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 10% 11%;
+    --sidebar-accent-foreground: 220 15% 92%;
+    --sidebar-border: 240 10% 13%;
+    --sidebar-ring: 250 95% 64%;
 
-    --sidebar-background: 225 30% 6%;
-    --sidebar-foreground: 210 20% 90%;
-    --sidebar-primary: 185 100% 50%;
-    --sidebar-primary-foreground: 220 30% 5%;
-    --sidebar-accent: 225 25% 10%;
-    --sidebar-accent-foreground: 210 20% 90%;
-    --sidebar-border: 225 25% 12%;
-    --sidebar-ring: 185 100% 50%;
-
-    --teleprompter-bg: 225 35% 3%;
-    --teleprompter-text: 185 30% 88%;
-    --teleprompter-question: 185 100% 55%;
-    --teleprompter-muted: 220 15% 35%;
+    --teleprompter-bg: 240 15% 3%;
+    --teleprompter-text: 220 20% 90%;
+    --teleprompter-question: 250 95% 72%;
+    --teleprompter-muted: 240 8% 35%;
   }
 }
 
@@ -103,163 +83,61 @@
   * {
     @apply border-border;
   }
-
   body {
-    @apply bg-background text-foreground;
-    font-family: 'Space Grotesk', sans-serif;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'DM Sans', system-ui, sans-serif;
   }
 
-  /* Custom scrollbar */
-  ::-webkit-scrollbar {
-    width: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
-    background: hsl(var(--muted-foreground) / 0.3);
-    border-radius: 3px;
+    background: hsl(var(--muted-foreground) / 0.2);
+    border-radius: 10px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--muted-foreground) / 0.5);
+    background: hsl(var(--muted-foreground) / 0.4);
   }
 }
 
 @layer utilities {
+  .font-heading {
+    font-family: 'Sora', system-ui, sans-serif;
+  }
   .font-mono {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'IBM Plex Mono', monospace;
   }
-
-  .font-display {
-    font-family: 'Orbitron', sans-serif;
-  }
-
-  .teleprompter-bg {
-    background-color: hsl(var(--teleprompter-bg));
-  }
-
-  .teleprompter-text {
-    color: hsl(var(--teleprompter-text));
-  }
-
-  .teleprompter-question {
-    color: hsl(var(--teleprompter-question));
-  }
-
-  .teleprompter-muted {
-    color: hsl(var(--teleprompter-muted));
-  }
+  .teleprompter-bg { background-color: hsl(var(--teleprompter-bg)); }
+  .teleprompter-text { color: hsl(var(--teleprompter-text)); }
+  .teleprompter-question { color: hsl(var(--teleprompter-question)); }
+  .teleprompter-muted { color: hsl(var(--teleprompter-muted)); }
 
   .glow-primary {
-    box-shadow: 0 0 15px hsl(var(--glow-primary) / 0.4),
-                0 0 45px hsl(var(--glow-primary) / 0.15),
-                inset 0 0 15px hsl(var(--glow-primary) / 0.05);
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.35),
+                0 0 60px hsl(var(--primary) / 0.12);
   }
-
-  .glow-accent {
-    box-shadow: 0 0 15px hsl(var(--glow-accent) / 0.4),
-                0 0 45px hsl(var(--glow-accent) / 0.15);
+  .glow-sm {
+    box-shadow: 0 0 10px hsl(var(--primary) / 0.2);
   }
-
-  .glow-border {
-    box-shadow: 0 0 0 1px hsl(var(--glow-primary) / 0.3),
-                0 0 15px hsl(var(--glow-primary) / 0.1);
-  }
-
   .glass {
-    background: hsl(var(--card) / 0.6);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: hsl(var(--card) / 0.5);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
   }
-
   .glass-strong {
-    background: hsl(var(--card) / 0.85);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
+    background: hsl(var(--card) / 0.8);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
   }
-
-  /* Animated grid background */
-  .grid-bg {
-    background-image: 
-      linear-gradient(hsl(var(--primary) / 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(var(--primary) / 0.03) 1px, transparent 1px);
-    background-size: 40px 40px;
+  .noise {
+    position: relative;
   }
-
-  /* Scan line effect */
-  .scan-lines::after {
+  .noise::before {
     content: '';
     position: absolute;
     inset: 0;
+    opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     pointer-events: none;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      hsl(var(--primary) / 0.02) 2px,
-      hsl(var(--primary) / 0.02) 4px
-    );
-  }
-
-  /* Gradient text */
-  .text-gradient {
-    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  /* Pulse ring animation */
-  .pulse-ring {
-    position: relative;
-  }
-  .pulse-ring::before {
-    content: '';
-    position: absolute;
-    inset: -2px;
     border-radius: inherit;
-    border: 1px solid hsl(var(--primary) / 0.5);
-    animation: pulse-ring 2s ease-out infinite;
-  }
-
-  @keyframes pulse-ring {
-    0% { opacity: 1; transform: scale(1); }
-    100% { opacity: 0; transform: scale(1.05); }
-  }
-}
-
-@layer components {
-  /* Futuristic card */
-  .tech-card {
-    @apply relative rounded-xl border border-border bg-card overflow-hidden transition-all duration-300;
-  }
-  .tech-card:hover {
-    @apply border-primary/30;
-    box-shadow: 0 0 20px hsl(var(--primary) / 0.08);
-  }
-
-  /* Futuristic button */
-  .tech-btn {
-    @apply relative overflow-hidden rounded-lg font-semibold transition-all duration-300;
-  }
-  .tech-btn::before {
-    content: '';
-    @apply absolute inset-0 opacity-0 transition-opacity duration-300;
-    background: linear-gradient(135deg, hsl(var(--primary) / 0.2), hsl(var(--accent) / 0.2));
-  }
-  .tech-btn:hover::before {
-    @apply opacity-100;
-  }
-
-  /* Selection card */
-  .select-card {
-    @apply relative rounded-xl border-2 p-4 text-left transition-all duration-300 cursor-pointer;
-  }
-  .select-card--inactive {
-    @apply border-border hover:border-primary/30 bg-card;
-  }
-  .select-card--active {
-    @apply border-primary bg-primary/5;
-    box-shadow: 0 0 20px hsl(var(--primary) / 0.1), inset 0 0 20px hsl(var(--primary) / 0.03);
   }
 }
