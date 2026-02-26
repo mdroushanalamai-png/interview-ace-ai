@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { useScribe, CommitStrategy } from "@elevenlabs/react";
 import { UserProfile, AudioSource, SessionMode } from "@/lib/types";
 import { useSession } from "@/hooks/useSession";
 import { useAudioCapture } from "@/hooks/useAudioCapture";
@@ -6,6 +7,7 @@ import { Teleprompter } from "./Teleprompter";
 import { SidePanel } from "./SidePanel";
 import { SessionControls } from "./SessionControls";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SessionScreenProps {
   profile: UserProfile;
@@ -19,6 +21,7 @@ interface SessionScreenProps {
 export function SessionScreen({ profile, initialAudioSource, mode, onEnd, remoteStream, systemStream }: SessionScreenProps) {
   const [sidePanelOpen, setSidePanelOpen] = useState(false);
   const session = useSession(profile);
+  const scribeConnectedRef = useRef(false);
 
   const handleTranscript = useCallback((text: string) => {
     if (!session.state.isPaused) {
@@ -34,38 +37,97 @@ export function SessionScreen({ profile, initialAudioSource, mode, onEnd, remote
 
   const audio = useAudioCapture(handleTranscript, handleQuestion, session.state.isPaused, mode === "solo");
 
+  // Setup useScribe for system/tab audio transcription
+  const scribe = useScribe({
+    modelId: "scribe_v2_realtime",
+    commitStrategy: CommitStrategy.VAD,
+    sampleRate: 16000,
+    onPartialTranscript: (data) => {
+      if (data.text) {
+        handleTranscript(data.text);
+      }
+    },
+    onCommittedTranscript: (data) => {
+      if (data.text) {
+        handleTranscript(data.text);
+        audio.detectQuestion(data.text);
+      }
+    },
+    onError: (error) => {
+      console.error("Scribe error:", error);
+      toast({ variant: "destructive", title: "Transcription Error", description: String(error) });
+    },
+  });
+
+  // Register scribe.sendAudio into audio capture hook
+  useEffect(() => {
+    if (scribe.isConnected) {
+      audio.registerScribeSendAudio(scribe.sendAudio);
+    }
+  }, [scribe.isConnected, scribe.sendAudio, audio.registerScribeSendAudio]);
+
   // Start on mount
   useEffect(() => {
     session.startSession();
-    if (initialAudioSource === "remote" && remoteStream) {
-      audio.startFromStream(remoteStream).catch(e => {
-        toast({ variant: "destructive", title: "Audio Error", description: e.message || "Failed to start remote audio" });
-      });
-    } else if (initialAudioSource === "system" && systemStream) {
-      // System stream already captured from user gesture in SetupPage
-      audio.startWithSystemStream(systemStream).catch(e => {
-        toast({ variant: "destructive", title: "Audio Error", description: e.message || "Failed to start system audio" });
-      });
-    } else {
-      audio.startCapture(initialAudioSource).catch(e => {
-        toast({ variant: "destructive", title: "Audio Error", description: e.message || "Failed to start audio capture" });
-      });
-    }
+
+    const initAudio = async () => {
+      if (initialAudioSource === "system" && systemStream) {
+        try {
+          // Fetch scribe token and connect
+          console.log("Fetching scribe token...");
+          const { data, error } = await supabase.functions.invoke("elevenlabs-scribe-token");
+          if (error || !data?.token) {
+            throw new Error(error?.message || "Failed to get transcription token");
+          }
+          console.log("Scribe token received, connecting...");
+          await scribe.connect({ token: data.token });
+          scribeConnectedRef.current = true;
+          console.log("Scribe connected, starting system capture...");
+          // Start audio processing (will send PCM to scribe via sendAudio)
+          audio.startWithSystemStream(systemStream);
+        } catch (e: any) {
+          console.error("System audio init failed:", e);
+          toast({ variant: "destructive", title: "Audio Error", description: e.message || "Failed to start system audio" });
+        }
+      } else if (initialAudioSource === "remote" && remoteStream) {
+        audio.startFromStream(remoteStream).catch(e => {
+          toast({ variant: "destructive", title: "Audio Error", description: e.message || "Failed to start remote audio" });
+        });
+      } else {
+        audio.startCapture(initialAudioSource).catch(e => {
+          toast({ variant: "destructive", title: "Audio Error", description: e.message || "Failed to start audio capture" });
+        });
+      }
+    };
+
+    initAudio();
 
     return () => {
       audio.stopCapture();
+      if (scribeConnectedRef.current) {
+        scribe.disconnect();
+        scribeConnectedRef.current = false;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleEnd = () => {
     audio.stopCapture();
+    if (scribeConnectedRef.current) {
+      scribe.disconnect();
+      scribeConnectedRef.current = false;
+    }
     session.endSession();
     onEnd();
   };
 
   const handleSwitchAudio = async (source: AudioSource) => {
     audio.stopCapture();
+    if (scribeConnectedRef.current) {
+      scribe.disconnect();
+      scribeConnectedRef.current = false;
+    }
     try {
       await audio.startCapture(source);
     } catch (e: any) {
@@ -91,7 +153,7 @@ export function SessionScreen({ profile, initialAudioSource, mode, onEnd, remote
           />
         </div>
 
-        {/* Side panel - hidden on mobile, sheet overlay could be added later */}
+        {/* Side panel */}
         {sidePanelOpen && (
           <div className="hidden sm:block w-80 flex-shrink-0">
             <SidePanel
