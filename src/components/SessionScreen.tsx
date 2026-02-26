@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { UserProfile, AudioSource } from "@/lib/types";
+import { UserProfile, AudioSource, SessionMode } from "@/lib/types";
 import { useSession } from "@/hooks/useSession";
 import { useAudioCapture } from "@/hooks/useAudioCapture";
 import { Teleprompter } from "./Teleprompter";
@@ -10,11 +10,12 @@ import { toast } from "@/hooks/use-toast";
 interface SessionScreenProps {
   profile: UserProfile;
   initialAudioSource: AudioSource;
+  mode: SessionMode;
   onEnd: () => void;
   remoteStream?: MediaStream;
 }
 
-export function SessionScreen({ profile, initialAudioSource, onEnd, remoteStream }: SessionScreenProps) {
+export function SessionScreen({ profile, initialAudioSource, mode, onEnd, remoteStream }: SessionScreenProps) {
   const [sidePanelOpen, setSidePanelOpen] = useState(true);
   const session = useSession(profile);
 
@@ -30,7 +31,7 @@ export function SessionScreen({ profile, initialAudioSource, onEnd, remoteStream
     }
   }, [session]);
 
-  const audio = useAudioCapture(handleTranscript, handleQuestion, session.state.isPaused);
+  const audio = useAudioCapture(handleTranscript, handleQuestion, session.state.isPaused, mode === "solo");
 
   // Start on mount
   useEffect(() => {

@@ -5,11 +5,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { UserProfile, AudioSource } from "@/lib/types";
-import { Mic, Monitor, Zap, Brain, Shield, Smartphone, Laptop } from "lucide-react";
+import { UserProfile, AudioSource, SessionMode } from "@/lib/types";
+import { Mic, Monitor, Zap, Brain, Shield, Smartphone, Laptop, Headphones, MessageSquare } from "lucide-react";
 
 interface SetupPageProps {
-  onStart: (profile: UserProfile, audioSource: AudioSource) => void;
+  onStart: (profile: UserProfile, audioSource: AudioSource, mode: SessionMode) => void;
   onMultiDevice: (role: "sender" | "receiver") => void;
 }
 
@@ -22,9 +22,10 @@ export function SetupPage({ onStart, onMultiDevice }: SetupPageProps) {
     talkingPoints: "",
   });
   const [audioSource, setAudioSource] = useState<AudioSource>("microphone");
+  const [sessionMode, setSessionMode] = useState<SessionMode>("interview");
 
   const handleStart = () => {
-    onStart(profile, audioSource);
+    onStart(profile, audioSource, sessionMode);
   };
 
   return (
@@ -120,6 +121,53 @@ export function SetupPage({ onStart, onMultiDevice }: SetupPageProps) {
                 value={profile.talkingPoints}
                 onChange={e => setProfile(p => ({ ...p, talkingPoints: e.target.value }))}
               />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Session Mode */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Session Mode</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <button
+                onClick={() => setSessionMode("interview")}
+                className={`p-4 rounded-xl border-2 text-left transition-all ${
+                  sessionMode === "interview"
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/40"
+                }`}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <MessageSquare className="w-5 h-5 text-primary" />
+                  </div>
+                  <span className="font-semibold">Interview Q&A</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Detects questions and generates answers. Use manual input or wait for question detection.
+                </p>
+              </button>
+              <button
+                onClick={() => setSessionMode("solo")}
+                className={`p-4 rounded-xl border-2 text-left transition-all ${
+                  sessionMode === "solo"
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/40"
+                }`}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Headphones className="w-5 h-5 text-primary" />
+                  </div>
+                  <span className="font-semibold">Hands-Free Guide</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Fully automatic. Listens, detects when speech stops, generates answer instantly. No buttons needed.
+                </p>
+              </button>
             </div>
           </CardContent>
         </Card>

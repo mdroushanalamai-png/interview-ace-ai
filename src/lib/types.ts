@@ -7,6 +7,7 @@ export interface UserProfile {
 }
 
 export type AudioSource = 'microphone' | 'system' | 'remote';
+export type SessionMode = 'interview' | 'solo';
 
 export interface QAEntry {
   id: string;
