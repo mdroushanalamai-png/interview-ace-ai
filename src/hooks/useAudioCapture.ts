@@ -1,6 +1,5 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { AudioSource } from "@/lib/types";
-import { supabase } from "@/integrations/supabase/client";
 
 export function useAudioCapture(
   onTranscriptChunk: (text: string) => void,
@@ -10,17 +9,21 @@ export function useAudioCapture(
 ) {
   const [audioSource, setAudioSource] = useState<AudioSource>("microphone");
   const [isCapturing, setIsCapturing] = useState(false);
-  const streamRef = useRef<MediaStream | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
-  const processorRef = useRef<ScriptProcessorNode | null>(null);
-  const contextRef = useRef<AudioContext | null>(null);
+  const recognitionRef = useRef<any>(null);
+  const isListeningRef = useRef(false);
   const sentenceBuffer = useRef("");
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isPausedRef = useRef(isPaused);
+
+  // Keep ref in sync
+  useEffect(() => {
+    isPausedRef.current = isPaused;
+  }, [isPaused]);
 
   const flushBuffer = useCallback(() => {
     const trimmed = sentenceBuffer.current.trim();
-    if (!trimmed || trimmed.length < 10) return; // ignore tiny fragments
-    
+    if (!trimmed || trimmed.length < 10) return;
+
     const questionPatterns = [
       /\?/,
       /^(what|how|why|when|where|who|which|can you|could you|tell me|describe|explain|walk me through)/i,
@@ -40,199 +43,133 @@ export function useAudioCapture(
 
   const detectQuestion = useCallback((text: string) => {
     sentenceBuffer.current += " " + text;
-    
-    // Clear existing silence timer
+
     if (silenceTimerRef.current) {
       clearTimeout(silenceTimerRef.current);
     }
 
     const trimmed = sentenceBuffer.current.trim();
-    
-    // Immediate flush if punctuation detected or buffer is long
+
     if (/[.?!]$/.test(trimmed) || trimmed.length > 150) {
       flushBuffer();
       return;
     }
 
-    // Otherwise, wait 2 seconds of silence then flush
     silenceTimerRef.current = setTimeout(() => {
       flushBuffer();
     }, 2000);
   }, [flushBuffer]);
 
+  const initRecognition = useCallback(() => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      throw new Error("Speech recognition not supported in this browser. Please use Chrome or Edge.");
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+
+    recognition.onresult = (event: any) => {
+      if (isPausedRef.current) return;
+
+      let interimTranscript = "";
+      let finalTranscript = "";
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript;
+        } else {
+          interimTranscript += transcript;
+        }
+      }
+
+      // Send interim updates for live display
+      if (interimTranscript) {
+        onTranscriptChunk(interimTranscript);
+      }
+
+      // Process final transcript for question detection
+      if (finalTranscript) {
+        onTranscriptChunk(finalTranscript);
+        detectQuestion(finalTranscript);
+      }
+    };
+
+    // Auto-restart on end (silence timeout)
+    recognition.onend = () => {
+      console.log("Speech recognition ended, restarting...");
+      if (isListeningRef.current) {
+        try {
+          recognition.start();
+        } catch (e) {
+          console.error("Failed to restart recognition:", e);
+        }
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("Speech recognition error:", event.error);
+      if (event.error === "not-allowed") {
+        isListeningRef.current = false;
+        setIsCapturing(false);
+      }
+      // For "no-speech" or "aborted", onend will handle restart
+    };
+
+    return recognition;
+  }, [onTranscriptChunk, detectQuestion]);
+
   const startCapture = useCallback(async (source: AudioSource) => {
-    try {
-      let stream: MediaStream;
-      
-      if (source === "system") {
-        stream = await navigator.mediaDevices.getDisplayMedia({
-          audio: true,
-          video: true, // required by browser, we'll ignore video
-        });
-        // Stop video tracks - we only need audio
-        stream.getVideoTracks().forEach(t => t.stop());
-        const audioTracks = stream.getAudioTracks();
-        if (audioTracks.length === 0) {
-          throw new Error("No audio track found. Make sure to share a tab with audio enabled.");
-        }
-        stream = new MediaStream(audioTracks);
-      } else {
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-        });
-      }
-
-      streamRef.current = stream;
-
-      // Get ElevenLabs scribe token
-      const { data, error } = await supabase.functions.invoke("elevenlabs-scribe-token");
-      if (error || !data?.token) {
-        throw new Error("Failed to get transcription token");
-      }
-
-      // Connect to ElevenLabs Realtime Scribe WebSocket
-      const ws = new WebSocket(
-        `wss://api.elevenlabs.io/v1/speech-to-text/realtime?model_id=scribe_v2_realtime&token=${data.token}&language_code=en`
-      );
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        console.log("Scribe WebSocket connected");
-        // Set up audio processing
-        const audioCtx = new AudioContext({ sampleRate: 16000 });
-        contextRef.current = audioCtx;
-        const src = audioCtx.createMediaStreamSource(stream);
-        const processor = audioCtx.createScriptProcessor(4096, 1, 1);
-        processorRef.current = processor;
-
-        processor.onaudioprocess = (e) => {
-          if (isPaused || ws.readyState !== WebSocket.OPEN) return;
-          const input = e.inputBuffer.getChannelData(0);
-          // Convert float32 to int16
-          const int16 = new Int16Array(input.length);
-          for (let i = 0; i < input.length; i++) {
-            const s = Math.max(-1, Math.min(1, input[i]));
-            int16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
-          }
-          // Base64 encode
-          const bytes = new Uint8Array(int16.buffer);
-          let binary = "";
-          for (let i = 0; i < bytes.length; i++) {
-            binary += String.fromCharCode(bytes[i]);
-          }
-          const base64 = btoa(binary);
-          ws.send(JSON.stringify({ audio: base64 }));
-        };
-
-        src.connect(processor);
-        processor.connect(audioCtx.destination);
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data);
-          if (msg.type === "transcript" && msg.data?.text) {
-            const text = msg.data.text;
-            onTranscriptChunk(text);
-            if (msg.data.is_final) {
-              detectQuestion(text);
-            }
-          }
-        } catch (e) {
-          console.error("WS message parse error:", e);
-        }
-      };
-
-      ws.onerror = (e) => console.error("Scribe WS error:", e);
-      ws.onclose = () => console.log("Scribe WS closed");
-
-      setIsCapturing(true);
-      setAudioSource(source);
-    } catch (e) {
-      console.error("Audio capture failed:", e);
-      throw e;
+    // For system audio, we still need getDisplayMedia but use Web Speech API for transcription
+    if (source === "system") {
+      // Request mic permission for Web Speech API (it uses its own mic access)
+      await navigator.mediaDevices.getUserMedia({ audio: true });
     }
-  }, [isPaused, onTranscriptChunk, detectQuestion]);
 
-  const startFromStream = useCallback(async (stream: MediaStream) => {
-    try {
-      streamRef.current = stream;
-
-      const { data, error } = await supabase.functions.invoke("elevenlabs-scribe-token");
-      if (error || !data?.token) {
-        throw new Error("Failed to get transcription token");
-      }
-
-      const ws = new WebSocket(
-        `wss://api.elevenlabs.io/v1/speech-to-text/realtime?model_id=scribe_v2_realtime&token=${data.token}&language_code=en`
-      );
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        console.log("Scribe WebSocket connected (remote stream)");
-        const audioCtx = new AudioContext({ sampleRate: 16000 });
-        contextRef.current = audioCtx;
-        const src = audioCtx.createMediaStreamSource(stream);
-        const processor = audioCtx.createScriptProcessor(4096, 1, 1);
-        processorRef.current = processor;
-
-        processor.onaudioprocess = (e) => {
-          if (isPaused || ws.readyState !== WebSocket.OPEN) return;
-          const input = e.inputBuffer.getChannelData(0);
-          const int16 = new Int16Array(input.length);
-          for (let i = 0; i < input.length; i++) {
-            const s = Math.max(-1, Math.min(1, input[i]));
-            int16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
-          }
-          const bytes = new Uint8Array(int16.buffer);
-          let binary = "";
-          for (let i = 0; i < bytes.length; i++) {
-            binary += String.fromCharCode(bytes[i]);
-          }
-          ws.send(JSON.stringify({ audio: btoa(binary) }));
-        };
-
-        src.connect(processor);
-        processor.connect(audioCtx.destination);
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data);
-          if (msg.type === "transcript" && msg.data?.text) {
-            onTranscriptChunk(msg.data.text);
-            if (msg.data.is_final) {
-              detectQuestion(msg.data.text);
-            }
-          }
-        } catch (e) {
-          console.error("WS message parse error:", e);
-        }
-      };
-
-      ws.onerror = (e) => console.error("Scribe WS error:", e);
-      ws.onclose = () => console.log("Scribe WS closed");
-
-      setIsCapturing(true);
-      setAudioSource("remote");
-    } catch (e) {
-      console.error("Remote stream capture failed:", e);
-      throw e;
+    if (!recognitionRef.current) {
+      recognitionRef.current = initRecognition();
     }
-  }, [isPaused, onTranscriptChunk, detectQuestion]);
+
+    if (!isListeningRef.current) {
+      isListeningRef.current = true;
+      recognitionRef.current.start();
+    }
+
+    setIsCapturing(true);
+    setAudioSource(source);
+    console.log("Speech recognition started");
+  }, [initRecognition]);
+
+  const startFromStream = useCallback(async (_stream: MediaStream) => {
+    // For remote streams, we use Web Speech API listening to the mic
+    // The remote audio plays through speakers, mic picks it up
+    if (!recognitionRef.current) {
+      recognitionRef.current = initRecognition();
+    }
+
+    if (!isListeningRef.current) {
+      isListeningRef.current = true;
+      recognitionRef.current.start();
+    }
+
+    setIsCapturing(true);
+    setAudioSource("remote");
+    console.log("Speech recognition started (remote mode)");
+  }, [initRecognition]);
 
   const stopCapture = useCallback(() => {
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-    wsRef.current?.close();
-    processorRef.current?.disconnect();
-    contextRef.current?.close();
-    streamRef.current?.getTracks().forEach(t => t.stop());
-    wsRef.current = null;
-    processorRef.current = null;
-    contextRef.current = null;
-    streamRef.current = null;
+    isListeningRef.current = false;
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
     setIsCapturing(false);
     sentenceBuffer.current = "";
+    console.log("Speech recognition stopped");
   }, []);
 
   return {
