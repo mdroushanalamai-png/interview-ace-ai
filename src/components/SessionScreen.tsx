@@ -16,7 +16,7 @@ interface SessionScreenProps {
 }
 
 export function SessionScreen({ profile, initialAudioSource, mode, onEnd, remoteStream }: SessionScreenProps) {
-  const [sidePanelOpen, setSidePanelOpen] = useState(true);
+  const [sidePanelOpen, setSidePanelOpen] = useState(false);
   const session = useSession(profile);
 
   const handleTranscript = useCallback((text: string) => {
@@ -80,11 +80,11 @@ export function SessionScreen({ profile, initialAudioSource, mode, onEnd, remote
   };
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className="h-[100dvh] flex flex-col bg-background">
       {/* Main area */}
       <div className="flex-1 flex min-h-0">
-        {/* Teleprompter */}
-        <div className="flex-1 p-4">
+        {/* Teleprompter - full width on mobile */}
+        <div className="flex-1 p-2 sm:p-4 min-w-0">
           <Teleprompter
             question={session.state.currentQuestion}
             answer={session.state.currentAnswer}
@@ -93,9 +93,9 @@ export function SessionScreen({ profile, initialAudioSource, mode, onEnd, remote
           />
         </div>
 
-        {/* Side panel */}
+        {/* Side panel - hidden on mobile, sheet overlay could be added later */}
         {sidePanelOpen && (
-          <div className="w-80 flex-shrink-0">
+          <div className="hidden sm:block w-80 flex-shrink-0">
             <SidePanel
               history={session.state.history}
               liveTranscript={session.state.liveTranscript}
