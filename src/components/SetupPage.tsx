@@ -4,7 +4,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
 import { UserProfile, AudioSource, SessionMode } from "@/lib/types";
 import { Mic, Monitor, Zap, Brain, Shield, Smartphone, Laptop, Headphones, MessageSquare, Upload, FileText, Loader2, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -274,25 +273,49 @@ export function SetupPage({ onStart, onMultiDevice }: SetupPageProps) {
             <CardTitle className="text-lg">Audio Source</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50">
-              <div className="flex items-center gap-3">
-                <Mic className={`w-5 h-5 ${audioSource === "microphone" ? "text-primary" : "text-muted-foreground"}`} />
-                <span className={audioSource === "microphone" ? "font-medium" : "text-muted-foreground"}>Microphone</span>
-              </div>
-              <Switch
-                checked={audioSource === "system"}
-                onCheckedChange={v => setAudioSource(v ? "system" : "microphone")}
-              />
-              <div className="flex items-center gap-3">
-                <span className={audioSource === "system" ? "font-medium" : "text-muted-foreground"}>System Audio</span>
-                <Monitor className={`w-5 h-5 ${audioSource === "system" ? "text-primary" : "text-muted-foreground"}`} />
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[
+                {
+                  value: "microphone" as AudioSource,
+                  icon: Mic,
+                  title: "Microphone",
+                  desc: "In-person interview. Picks up audio from your mic.",
+                },
+                {
+                  value: "system" as AudioSource,
+                  icon: Monitor,
+                  title: "Virtual Call",
+                  desc: "Zoom, Meet, WhatsApp calls. Captures system audio even with headphones.",
+                },
+              ].map(({ value, icon: Icon, title, desc }) => (
+                <button
+                  key={value}
+                  onClick={() => setAudioSource(value)}
+                  className={`p-4 rounded-xl border-2 text-left transition-all ${
+                    audioSource === value
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/40"
+                  }`}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <Icon className="w-5 h-5 text-primary" />
+                    </div>
+                    <span className="font-semibold text-sm">{title}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{desc}</p>
+                </button>
+              ))}
             </div>
-            <p className="text-xs text-muted-foreground mt-3 text-center">
-              {audioSource === "system"
-                ? "You'll be asked to share a browser tab. Make sure to check 'Share tab audio'."
-                : "Uses your microphone to pick up audio from your speakers."}
-            </p>
+            {audioSource === "system" && (
+              <div className="mt-3 p-3 rounded-lg bg-muted/50 text-xs text-muted-foreground space-y-1">
+                <p className="font-medium text-foreground">How it works:</p>
+                <p>1. Click Start → you'll be asked to share a screen/tab</p>
+                <p>2. Select the tab with your Zoom/WhatsApp/Meet call</p>
+                <p>3. ✅ Check "Share tab audio" (important!)</p>
+                <p>4. The app captures call audio directly — headphones won't block it</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
