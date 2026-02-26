@@ -3,11 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserProfile, AudioSource, SessionMode } from "@/lib/types";
-import { Mic, Monitor, Zap, Brain, Shield, Smartphone, Laptop, Headphones, MessageSquare, Upload, FileText, Loader2, X } from "lucide-react";
+import { Mic, Monitor, Zap, Brain, Shield, Smartphone, Laptop, Headphones, MessageSquare, Upload, FileText, Loader2, X, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { ThemeToggle } from "./ThemeToggle";
 
 interface SetupPageProps {
   onStart: (profile: UserProfile, audioSource: AudioSource, mode: SessionMode) => void;
@@ -87,275 +87,225 @@ export function SetupPage({ onStart, onMultiDevice }: SetupPageProps) {
     setProfile(p => ({ ...p, resume: "" }));
   };
 
+  const features = [
+    { icon: Brain, title: "AI Answers", desc: "Personalized to your resume" },
+    { icon: Mic, title: "Live STT", desc: "Ultra-low latency transcription" },
+    { icon: Shield, title: "Private", desc: "Data stays in your browser" },
+  ];
+
+  const audioOptions = [
+    {
+      value: "microphone" as AudioSource,
+      icon: Mic,
+      title: "Microphone",
+      desc: "In-person. Picks up audio from mic.",
+    },
+    {
+      value: "system" as AudioSource,
+      icon: Monitor,
+      title: "Virtual Call",
+      desc: "Zoom, Meet, WhatsApp. Captures system audio even with headphones.",
+    },
+  ];
+
+  const modeOptions = [
+    {
+      value: "interview" as SessionMode,
+      icon: MessageSquare,
+      title: "Interview Q&A",
+      desc: "Detects questions, generates answers on demand.",
+    },
+    {
+      value: "solo" as SessionMode,
+      icon: Headphones,
+      title: "Hands-Free",
+      desc: "Fully auto. Listens, detects, answers instantly.",
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background grid-bg relative">
+      {/* Theme toggle */}
+      <div className="absolute top-4 right-4 z-10">
+        <ThemeToggle />
+      </div>
+
       {/* Hero */}
       <div className="relative overflow-hidden border-b border-border">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/10" />
-        <div className="relative max-w-4xl mx-auto px-6 py-16 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
-            <Zap className="w-4 h-4" />
-            AI-Powered Interview Assistant
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
+        <div className="absolute inset-0 scan-lines" />
+        <div className="relative max-w-3xl mx-auto px-4 sm:px-6 py-12 sm:py-20 text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/5 text-primary text-xs font-mono tracking-wider mb-6 animate-fade-in glow-border">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-glow-pulse" />
+            SYSTEM ONLINE
           </div>
-          <h1 className="text-5xl font-bold tracking-tight mb-4">
-            Ace Every Interview
+          <h1 className="font-display text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+            <span className="text-gradient">Interview</span>{" "}
+            <span className="text-foreground">Copilot</span>
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Real-time AI answers personalized to your profile. Listen to questions, get instant professional responses on your teleprompter.
+          <p className="text-sm sm:text-lg text-muted-foreground max-w-xl mx-auto animate-fade-in" style={{ animationDelay: '0.2s' }}>
+            Real-time AI answers personalized to your profile. Listen, detect, respond — seamlessly.
           </p>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-6 py-12 space-y-8">
-        {/* Features */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[
-            { icon: Brain, title: "AI Answers", desc: "Streaming answers personalized to your resume" },
-            { icon: Mic, title: "Live Transcription", desc: "Ultra-low latency speech-to-text" },
-            { icon: Shield, title: "Your Data", desc: "Profile stays in your browser, never stored" },
-          ].map(({ icon: Icon, title, desc }) => (
-            <div key={title} className="flex items-start gap-3 p-4 rounded-xl bg-card border border-border">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Icon className="w-5 h-5 text-primary" />
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+        {/* Feature chips */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+          {features.map(({ icon: Icon, title, desc }) => (
+            <div key={title} className="tech-card p-3 sm:p-4 flex flex-col items-center text-center gap-2">
+              <div className="p-2 rounded-lg bg-primary/10 border border-primary/20">
+                <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
               </div>
               <div>
-                <h3 className="font-semibold text-sm">{title}</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
+                <p className="text-xs sm:text-sm font-semibold">{title}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 hidden sm:block">{desc}</p>
               </div>
             </div>
           ))}
         </div>
 
-        {/* Profile Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Your Profile</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Your Name</Label>
-                <Input
-                  id="name"
-                  placeholder="John Doe"
-                  value={profile.name}
-                  onChange={e => setProfile(p => ({ ...p, name: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="exp">Experience Level</Label>
-                <Input
-                  id="exp"
-                  placeholder="e.g. Senior, 5 years"
-                  value={profile.experienceLevel}
-                  onChange={e => setProfile(p => ({ ...p, experienceLevel: e.target.value }))}
-                />
-              </div>
+        {/* Profile */}
+        <section className="tech-card p-4 sm:p-6 space-y-4 animate-fade-in-up" style={{ animationDelay: '0.35s' }}>
+          <h2 className="font-display text-sm tracking-wider text-primary uppercase">Your Profile</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="name" className="text-xs">Name</Label>
+              <Input id="name" placeholder="John Doe" value={profile.name}
+                onChange={e => setProfile(p => ({ ...p, name: e.target.value }))}
+                className="h-9 text-sm bg-background/50" />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="skills">Key Skills</Label>
-              <Input
-                id="skills"
-                placeholder="React, TypeScript, Node.js, AWS..."
-                value={profile.skills}
-                onChange={e => setProfile(p => ({ ...p, skills: e.target.value }))}
-              />
+            <div className="space-y-1.5">
+              <Label htmlFor="exp" className="text-xs">Experience</Label>
+              <Input id="exp" placeholder="e.g. Senior, 5 years" value={profile.experienceLevel}
+                onChange={e => setProfile(p => ({ ...p, experienceLevel: e.target.value }))}
+                className="h-9 text-sm bg-background/50" />
             </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="skills" className="text-xs">Skills</Label>
+            <Input id="skills" placeholder="React, TypeScript, Node.js, AWS..."
+              value={profile.skills}
+              onChange={e => setProfile(p => ({ ...p, skills: e.target.value }))}
+              className="h-9 text-sm bg-background/50" />
+          </div>
 
-            {/* PDF Upload */}
-            <div className="space-y-2">
-              <Label>Resume PDF</Label>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf"
-                onChange={handlePdfUpload}
-                className="hidden"
-              />
-              {uploadedFileName ? (
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
-                  <FileText className="w-5 h-5 text-primary flex-shrink-0" />
-                  <span className="text-sm font-medium truncate flex-1">{uploadedFileName}</span>
-                  {isParsing ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                  ) : (
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={clearUpload}>
-                      <X className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <Button
-                  variant="outline"
-                  className="w-full h-20 border-dashed flex-col gap-2"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isParsing}
-                >
-                  <Upload className="w-5 h-5 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Upload Resume PDF (max 10MB)</span>
-                </Button>
-              )}
-            </div>
+          {/* PDF Upload */}
+          <div className="space-y-1.5">
+            <Label className="text-xs">Resume PDF</Label>
+            <input ref={fileInputRef} type="file" accept=".pdf" onChange={handlePdfUpload} className="hidden" />
+            {uploadedFileName ? (
+              <div className="flex items-center gap-3 p-2.5 rounded-lg bg-primary/5 border border-primary/20">
+                <FileText className="w-4 h-4 text-primary flex-shrink-0" />
+                <span className="text-xs font-medium truncate flex-1">{uploadedFileName}</span>
+                {isParsing ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                ) : (
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={clearUpload}>
+                    <X className="w-3 h-3" />
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <Button variant="outline" className="w-full h-16 border-dashed flex-col gap-1.5 text-xs"
+                onClick={() => fileInputRef.current?.click()} disabled={isParsing}>
+                <Upload className="w-4 h-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Upload PDF (max 10MB)</span>
+              </Button>
+            )}
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="resume">Resume / Background {uploadedFileName && "(extracted from PDF)"}</Label>
-              <Textarea
-                id="resume"
-                placeholder="Paste your resume or upload a PDF above..."
-                className="min-h-[120px]"
-                value={profile.resume}
-                onChange={e => setProfile(p => ({ ...p, resume: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="points">Talking Points</Label>
-              <Textarea
-                id="points"
-                placeholder="Key achievements, projects, or points you want the AI to mention..."
-                className="min-h-[80px]"
-                value={profile.talkingPoints}
-                onChange={e => setProfile(p => ({ ...p, talkingPoints: e.target.value }))}
-              />
-            </div>
-          </CardContent>
-        </Card>
+          <div className="space-y-1.5">
+            <Label htmlFor="resume" className="text-xs">Resume {uploadedFileName && "(extracted)"}</Label>
+            <Textarea id="resume" placeholder="Paste your resume or upload PDF above..."
+              className="min-h-[100px] text-sm bg-background/50"
+              value={profile.resume}
+              onChange={e => setProfile(p => ({ ...p, resume: e.target.value }))} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="points" className="text-xs">Talking Points</Label>
+            <Textarea id="points" placeholder="Key achievements, projects to highlight..."
+              className="min-h-[70px] text-sm bg-background/50"
+              value={profile.talkingPoints}
+              onChange={e => setProfile(p => ({ ...p, talkingPoints: e.target.value }))} />
+          </div>
+        </section>
 
         {/* Session Mode */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Session Mode</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <button
-                onClick={() => setSessionMode("interview")}
-                className={`p-4 rounded-xl border-2 text-left transition-all ${
-                  sessionMode === "interview"
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-primary/40"
-                }`}
-              >
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <MessageSquare className="w-5 h-5 text-primary" />
-                  </div>
-                  <span className="font-semibold">Interview Q&A</span>
+        <section className="tech-card p-4 sm:p-6 space-y-3 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
+          <h2 className="font-display text-sm tracking-wider text-primary uppercase">Mode</h2>
+          <div className="grid grid-cols-2 gap-3">
+            {modeOptions.map(({ value, icon: Icon, title, desc }) => (
+              <button key={value} onClick={() => setSessionMode(value)}
+                className={`select-card ${sessionMode === value ? 'select-card--active' : 'select-card--inactive'}`}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Icon className={`w-4 h-4 ${sessionMode === value ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <span className="text-xs sm:text-sm font-semibold">{title}</span>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Detects questions and generates answers. Use manual input or wait for question detection.
-                </p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground leading-snug">{desc}</p>
               </button>
-              <button
-                onClick={() => setSessionMode("solo")}
-                className={`p-4 rounded-xl border-2 text-left transition-all ${
-                  sessionMode === "solo"
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-primary/40"
-                }`}
-              >
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Headphones className="w-5 h-5 text-primary" />
-                  </div>
-                  <span className="font-semibold">Hands-Free Guide</span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Fully automatic. Listens, detects when speech stops, generates answer instantly. No buttons needed.
-                </p>
-              </button>
-            </div>
-          </CardContent>
-        </Card>
+            ))}
+          </div>
+        </section>
 
         {/* Audio Source */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Audio Source</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {[
-                {
-                  value: "microphone" as AudioSource,
-                  icon: Mic,
-                  title: "Microphone",
-                  desc: "In-person interview. Picks up audio from your mic.",
-                },
-                {
-                  value: "system" as AudioSource,
-                  icon: Monitor,
-                  title: "Virtual Call",
-                  desc: "Zoom, Meet, WhatsApp calls. Captures system audio even with headphones.",
-                },
-              ].map(({ value, icon: Icon, title, desc }) => (
-                <button
-                  key={value}
-                  onClick={() => setAudioSource(value)}
-                  className={`p-4 rounded-xl border-2 text-left transition-all ${
-                    audioSource === value
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/40"
-                  }`}
-                >
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 rounded-lg bg-primary/10">
-                      <Icon className="w-5 h-5 text-primary" />
-                    </div>
-                    <span className="font-semibold text-sm">{title}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">{desc}</p>
-                </button>
-              ))}
+        <section className="tech-card p-4 sm:p-6 space-y-3 animate-fade-in-up" style={{ animationDelay: '0.45s' }}>
+          <h2 className="font-display text-sm tracking-wider text-primary uppercase">Audio Source</h2>
+          <div className="grid grid-cols-2 gap-3">
+            {audioOptions.map(({ value, icon: Icon, title, desc }) => (
+              <button key={value} onClick={() => setAudioSource(value)}
+                className={`select-card ${audioSource === value ? 'select-card--active' : 'select-card--inactive'}`}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Icon className={`w-4 h-4 ${audioSource === value ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <span className="text-xs sm:text-sm font-semibold">{title}</span>
+                </div>
+                <p className="text-[10px] sm:text-xs text-muted-foreground leading-snug">{desc}</p>
+              </button>
+            ))}
+          </div>
+          {audioSource === "system" && (
+            <div className="p-3 rounded-lg border border-primary/20 bg-primary/5 text-xs text-muted-foreground space-y-1 font-mono">
+              <p className="text-primary font-semibold text-[11px]">// SETUP</p>
+              <p>1. Click Start → share a screen/tab</p>
+              <p>2. Select your Zoom/WhatsApp/Meet tab</p>
+              <p>3. ✅ Check "Share tab audio"</p>
+              <p>4. Audio captured directly — headphones OK</p>
             </div>
-            {audioSource === "system" && (
-              <div className="mt-3 p-3 rounded-lg bg-muted/50 text-xs text-muted-foreground space-y-1">
-                <p className="font-medium text-foreground">How it works:</p>
-                <p>1. Click Start → you'll be asked to share a screen/tab</p>
-                <p>2. Select the tab with your Zoom/WhatsApp/Meet call</p>
-                <p>3. ✅ Check "Share tab audio" (important!)</p>
-                <p>4. The app captures call audio directly — headphones won't block it</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          )}
+        </section>
 
-        {/* Multi-Device Mode */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Multi-Device Mode</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Stream audio from your laptop to your phone over WiFi. The phone transcribes and shows AI answers.
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              <Button variant="outline" className="h-auto py-4 flex-col gap-2" onClick={() => onMultiDevice("sender")}>
-                <Laptop className="w-6 h-6" />
-                <div className="text-center">
-                  <div className="font-semibold text-sm">Laptop</div>
-                  <div className="text-xs text-muted-foreground">Send audio</div>
-                </div>
-              </Button>
-              <Button variant="outline" className="h-auto py-4 flex-col gap-2" onClick={() => onMultiDevice("receiver")}>
-                <Smartphone className="w-6 h-6" />
-                <div className="text-center">
-                  <div className="font-semibold text-sm">Phone</div>
-                  <div className="text-xs text-muted-foreground">Receive & process</div>
-                </div>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Multi-Device */}
+        <section className="tech-card p-4 sm:p-6 space-y-3 animate-fade-in-up" style={{ animationDelay: '0.5s' }}>
+          <h2 className="font-display text-sm tracking-wider text-primary uppercase">Multi-Device</h2>
+          <p className="text-xs text-muted-foreground">
+            Stream audio from laptop to phone via WiFi. Phone transcribes and shows AI answers.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <Button variant="outline" className="h-auto py-3 flex-col gap-1.5 tech-btn" onClick={() => onMultiDevice("sender")}>
+              <Laptop className="w-5 h-5" />
+              <span className="font-semibold text-xs">Laptop</span>
+              <span className="text-[10px] text-muted-foreground">Send audio</span>
+            </Button>
+            <Button variant="outline" className="h-auto py-3 flex-col gap-1.5 tech-btn" onClick={() => onMultiDevice("receiver")}>
+              <Smartphone className="w-5 h-5" />
+              <span className="font-semibold text-xs">Phone</span>
+              <span className="text-[10px] text-muted-foreground">Receive & process</span>
+            </Button>
+          </div>
+        </section>
 
         {/* Start Button */}
-        <Button
-          size="lg"
-          className="w-full h-14 text-lg font-semibold glow-primary"
-          onClick={handleStart}
-        >
-          <Zap className="w-5 h-5 mr-2" />
-          Start Interview Session
+        <Button size="lg" className="w-full h-12 sm:h-14 text-sm sm:text-base font-display font-bold tracking-wider glow-primary animate-fade-in-up"
+          style={{ animationDelay: '0.55s' }}
+          onClick={handleStart}>
+          <Zap className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+          LAUNCH SESSION
+          <ChevronRight className="w-4 h-4 ml-1" />
         </Button>
+
+        <p className="text-center text-[10px] text-muted-foreground pb-8">
+          Works best in Chrome or Edge • Your data never leaves your browser
+        </p>
       </div>
     </div>
   );
