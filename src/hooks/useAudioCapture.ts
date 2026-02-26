@@ -15,32 +15,50 @@ export function useAudioCapture(
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const contextRef = useRef<AudioContext | null>(null);
   const sentenceBuffer = useRef("");
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const detectQuestion = useCallback((text: string) => {
-    sentenceBuffer.current += " " + text;
+  const flushBuffer = useCallback(() => {
     const trimmed = sentenceBuffer.current.trim();
+    if (!trimmed || trimmed.length < 10) return; // ignore tiny fragments
     
-    // Simple heuristic: if the accumulated text ends with ? or contains question patterns
     const questionPatterns = [
-      /\?$/,
+      /\?/,
       /^(what|how|why|when|where|who|which|can you|could you|tell me|describe|explain|walk me through)/i,
       /^(have you|do you|did you|are you|were you|will you|would you)/i,
     ];
 
-    // Check if we have a complete sentence
-    if (/[.?!]$/.test(trimmed) || trimmed.length > 150) {
-      if (autoDetectAll) {
-        // Solo mode: treat every utterance as a question
+    if (autoDetectAll) {
+      onQuestionDetected(trimmed);
+    } else {
+      const isQuestion = questionPatterns.some(p => p.test(trimmed));
+      if (isQuestion) {
         onQuestionDetected(trimmed);
-      } else {
-        const isQuestion = questionPatterns.some(p => p.test(trimmed));
-        if (isQuestion) {
-          onQuestionDetected(trimmed);
-        }
       }
-      sentenceBuffer.current = "";
     }
+    sentenceBuffer.current = "";
   }, [onQuestionDetected, autoDetectAll]);
+
+  const detectQuestion = useCallback((text: string) => {
+    sentenceBuffer.current += " " + text;
+    
+    // Clear existing silence timer
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+    }
+
+    const trimmed = sentenceBuffer.current.trim();
+    
+    // Immediate flush if punctuation detected or buffer is long
+    if (/[.?!]$/.test(trimmed) || trimmed.length > 150) {
+      flushBuffer();
+      return;
+    }
+
+    // Otherwise, wait 2 seconds of silence then flush
+    silenceTimerRef.current = setTimeout(() => {
+      flushBuffer();
+    }, 2000);
+  }, [flushBuffer]);
 
   const startCapture = useCallback(async (source: AudioSource) => {
     try {
@@ -204,6 +222,7 @@ export function useAudioCapture(
   }, [isPaused, onTranscriptChunk, detectQuestion]);
 
   const stopCapture = useCallback(() => {
+    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
     wsRef.current?.close();
     processorRef.current?.disconnect();
     contextRef.current?.close();
