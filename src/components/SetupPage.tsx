@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -6,7 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { UserProfile, AudioSource, SessionMode } from "@/lib/types";
-import { Mic, Monitor, Zap, Brain, Shield, Smartphone, Laptop, Headphones, MessageSquare } from "lucide-react";
+import { Mic, Monitor, Zap, Brain, Shield, Smartphone, Laptop, Headphones, MessageSquare, Upload, FileText, Loader2, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 interface SetupPageProps {
   onStart: (profile: UserProfile, audioSource: AudioSource, mode: SessionMode) => void;
@@ -23,9 +25,67 @@ export function SetupPage({ onStart, onMultiDevice }: SetupPageProps) {
   });
   const [audioSource, setAudioSource] = useState<AudioSource>("microphone");
   const [sessionMode, setSessionMode] = useState<SessionMode>("interview");
+  const [isParsing, setIsParsing] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleStart = () => {
     onStart(profile, audioSource, sessionMode);
+  };
+
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== "application/pdf") {
+      toast({ variant: "destructive", title: "Invalid file", description: "Please upload a PDF file." });
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ variant: "destructive", title: "File too large", description: "Max 10MB." });
+      return;
+    }
+
+    setIsParsing(true);
+    setUploadedFileName(file.name);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-resume`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: "Failed to parse PDF" }));
+        throw new Error(err.error || "Failed to parse PDF");
+      }
+
+      const { text } = await response.json();
+      setProfile(p => ({ ...p, resume: text }));
+      toast({ title: "Resume parsed!", description: "Your PDF has been extracted successfully." });
+    } catch (err: any) {
+      console.error("PDF parse error:", err);
+      toast({ variant: "destructive", title: "Parse failed", description: err.message });
+      setUploadedFileName(null);
+    } finally {
+      setIsParsing(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const clearUpload = () => {
+    setUploadedFileName(null);
+    setProfile(p => ({ ...p, resume: "" }));
   };
 
   return (
@@ -102,11 +162,47 @@ export function SetupPage({ onStart, onMultiDevice }: SetupPageProps) {
                 onChange={e => setProfile(p => ({ ...p, skills: e.target.value }))}
               />
             </div>
+
+            {/* PDF Upload */}
             <div className="space-y-2">
-              <Label htmlFor="resume">Resume / Background</Label>
+              <Label>Resume PDF</Label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf"
+                onChange={handlePdfUpload}
+                className="hidden"
+              />
+              {uploadedFileName ? (
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                  <FileText className="w-5 h-5 text-primary flex-shrink-0" />
+                  <span className="text-sm font-medium truncate flex-1">{uploadedFileName}</span>
+                  {isParsing ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                  ) : (
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={clearUpload}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  className="w-full h-20 border-dashed flex-col gap-2"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isParsing}
+                >
+                  <Upload className="w-5 h-5 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Upload Resume PDF (max 10MB)</span>
+                </Button>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="resume">Resume / Background {uploadedFileName && "(extracted from PDF)"}</Label>
               <Textarea
                 id="resume"
-                placeholder="Paste your resume or write a summary of your experience..."
+                placeholder="Paste your resume or upload a PDF above..."
                 className="min-h-[120px]"
                 value={profile.resume}
                 onChange={e => setProfile(p => ({ ...p, resume: e.target.value }))}
