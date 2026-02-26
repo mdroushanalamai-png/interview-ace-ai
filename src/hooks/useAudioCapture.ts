@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { AudioSource } from "@/lib/types";
 
+const SCRIBE_TOKEN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-scribe-token`;
+
 export function useAudioCapture(
   onTranscriptChunk: (text: string) => void,
   onQuestionDetected: (question: string) => void,
@@ -9,17 +11,27 @@ export function useAudioCapture(
 ) {
   const [audioSource, setAudioSource] = useState<AudioSource>("microphone");
   const [isCapturing, setIsCapturing] = useState(false);
-  const recognitionRef = useRef<any>(null);
-  const isListeningRef = useRef(false);
+
+  // --- Shared refs ---
+  const isPausedRef = useRef(isPaused);
   const sentenceBuffer = useRef("");
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isPausedRef = useRef(isPaused);
 
-  // Keep ref in sync
+  // --- Mic mode refs (SpeechRecognition) ---
+  const recognitionRef = useRef<any>(null);
+  const isListeningRef = useRef(false);
+
+  // --- System mode refs (MediaRecorder + WebSocket) ---
+  const systemStreamRef = useRef<MediaStream | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const scribeTokenRef = useRef<string | null>(null);
+
   useEffect(() => {
     isPausedRef.current = isPaused;
   }, [isPaused]);
 
+  // ---- Question detection (shared) ----
   const flushBuffer = useCallback(() => {
     const trimmed = sentenceBuffer.current.trim();
     if (!trimmed || trimmed.length < 10) return;
@@ -44,12 +56,9 @@ export function useAudioCapture(
   const detectQuestion = useCallback((text: string) => {
     sentenceBuffer.current += " " + text;
 
-    if (silenceTimerRef.current) {
-      clearTimeout(silenceTimerRef.current);
-    }
+    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
 
     const trimmed = sentenceBuffer.current.trim();
-
     if (/[.?!]$/.test(trimmed) || trimmed.length > 150) {
       flushBuffer();
       return;
@@ -60,12 +69,15 @@ export function useAudioCapture(
     }, 2000);
   }, [flushBuffer]);
 
+  // =============================================
+  //  MIC MODE — Web Speech API (unchanged logic)
+  // =============================================
   const initRecognition = useCallback(() => {
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      throw new Error("Speech recognition not supported in this browser. Please use Chrome or Edge.");
+      throw new Error("Speech recognition not supported. Use Chrome or Edge.");
     }
 
     const recognition = new SpeechRecognition();
@@ -88,60 +100,31 @@ export function useAudioCapture(
         }
       }
 
-      // Send interim updates for live display
-      if (interimTranscript) {
-        onTranscriptChunk(interimTranscript);
-      }
-
-      // Process final transcript for question detection
+      if (interimTranscript) onTranscriptChunk(interimTranscript);
       if (finalTranscript) {
         onTranscriptChunk(finalTranscript);
         detectQuestion(finalTranscript);
       }
     };
 
-    // Auto-restart on end (silence timeout)
     recognition.onend = () => {
-      console.log("Speech recognition ended, restarting...");
       if (isListeningRef.current) {
-        try {
-          recognition.start();
-        } catch (e) {
-          console.error("Failed to restart recognition:", e);
-        }
+        try { recognition.start(); } catch (e) { console.error("Restart failed:", e); }
       }
     };
 
     recognition.onerror = (event: any) => {
-      console.error("Speech recognition error:", event.error);
+      console.error("SpeechRecognition error:", event.error);
       if (event.error === "not-allowed") {
         isListeningRef.current = false;
         setIsCapturing(false);
       }
-      // For "no-speech" or "aborted", onend will handle restart
     };
 
     return recognition;
   }, [onTranscriptChunk, detectQuestion]);
 
-  const systemStreamRef = useRef<MediaStream | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-
-  const stopCapture = useCallback(() => {
-    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-    isListeningRef.current = false;
-    recognitionRef.current?.stop();
-    recognitionRef.current = null;
-    systemStreamRef.current?.getTracks().forEach(t => t.stop());
-    systemStreamRef.current = null;
-    audioContextRef.current?.close();
-    audioContextRef.current = null;
-    setIsCapturing(false);
-    sentenceBuffer.current = "";
-    console.log("Speech recognition stopped");
-  }, []);
-
-  const startRecognition = useCallback((source: AudioSource) => {
+  const startMicRecognition = useCallback(() => {
     if (!recognitionRef.current) {
       recognitionRef.current = initRecognition();
     }
@@ -150,51 +133,172 @@ export function useAudioCapture(
       recognitionRef.current.start();
     }
     setIsCapturing(true);
-    setAudioSource(source);
-    console.log(`Speech recognition started (${source} mode)`);
+    setAudioSource("microphone");
+    console.log("Mic recognition started");
   }, [initRecognition]);
 
-  const setupSystemAudio = useCallback((stream: MediaStream) => {
+  // =============================================
+  //  SYSTEM MODE — MediaRecorder + ElevenLabs Scribe WebSocket
+  //  Captures ONLY the other tab's audio, no echo.
+  // =============================================
+
+  const fetchScribeToken = useCallback(async (): Promise<string> => {
+    const res = await fetch(SCRIBE_TOKEN_URL, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "Failed to get transcription token");
+    }
+    const { token } = await res.json();
+    return token;
+  }, []);
+
+  const startSystemCapture = useCallback(async (stream: MediaStream) => {
+    // 1. Get a scribe token
+    console.log("Fetching ElevenLabs Scribe token...");
+    const token = await fetchScribeToken();
+    scribeTokenRef.current = token;
+
     systemStreamRef.current = stream;
-    const audioCtx = new AudioContext();
-    audioContextRef.current = audioCtx;
-    const mediaSource = audioCtx.createMediaStreamSource(stream);
-    const gainNode = audioCtx.createGain();
-    gainNode.gain.value = 1.0;
-    mediaSource.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
+
+    // 2. Connect WebSocket to ElevenLabs Scribe
+    const ws = new WebSocket(`wss://api.elevenlabs.io/v1/scribe?token=${token}`);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log("Scribe WebSocket connected");
+
+      // Send config message
+      ws.send(JSON.stringify({
+        type: "config",
+        data: {
+          language: "en",
+          model: "scribe_v1",
+          encoding: "pcm_s16le",
+          sample_rate: 16000,
+        }
+      }));
+
+      // 3. Use AudioContext to capture tab audio at 16kHz PCM and send to WS
+      // Output is muted (gain=0) to prevent echo — audio only goes to Scribe
+      const audioCtx = new AudioContext({ sampleRate: 16000 });
+      const source = audioCtx.createMediaStreamSource(stream);
+      const gainNode = audioCtx.createGain();
+      gainNode.gain.value = 0; // MUTE output — no echo
+      const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+
+      processor.onaudioprocess = (e) => {
+        if (isPausedRef.current) return;
+        if (ws.readyState !== WebSocket.OPEN) return;
+
+        const float32 = e.inputBuffer.getChannelData(0);
+        const int16 = new Int16Array(float32.length);
+        for (let i = 0; i < float32.length; i++) {
+          const s = Math.max(-1, Math.min(1, float32[i]));
+          int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        }
+        ws.send(int16.buffer);
+      };
+
+      // Route: source → processor → gain(0) → destination (silent)
+      source.connect(processor);
+      processor.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      // Store for cleanup
+      (stream as any).__audioCtx = audioCtx;
+      (stream as any).__processor = processor;
+    };
+
+    ws.onmessage = (event) => {
+      if (isPausedRef.current) return;
+      try {
+        const data = JSON.parse(event.data);
+        // ElevenLabs Scribe sends transcript events
+        if (data.type === "transcript" && data.data?.text) {
+          const text = data.data.text.trim();
+          if (text) {
+            onTranscriptChunk(text);
+            if (data.data.is_final) {
+              detectQuestion(text);
+            }
+          }
+        }
+      } catch (e) {
+        // ignore parse errors
+      }
+    };
+
+    ws.onerror = (e) => {
+      console.error("Scribe WebSocket error:", e);
+    };
+
+    ws.onclose = (e) => {
+      console.log("Scribe WebSocket closed:", e.code, e.reason);
+    };
+
+    // Track ended (user stops sharing)
     stream.getAudioTracks().forEach(track => {
       track.onended = () => {
-        console.log("System audio share stopped by user");
+        console.log("Tab audio share stopped by user");
         stopCapture();
       };
     });
-  }, [stopCapture]);
 
-  const startCapture = useCallback(async (source: AudioSource) => {
-    if (source === "system") {
-      try {
-        const displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-        displayStream.getVideoTracks().forEach(t => t.stop());
-        setupSystemAudio(displayStream);
-        await navigator.mediaDevices.getUserMedia({ audio: true });
-      } catch (e: any) {
-        console.error("Failed to capture system audio:", e);
-        throw new Error("System audio capture cancelled or not supported.");
-      }
+    setIsCapturing(true);
+    setAudioSource("system");
+    console.log("System audio capture started via Scribe WebSocket");
+  }, [fetchScribeToken, onTranscriptChunk, detectQuestion]);
+
+  // ---- Cleanup ----
+  const stopCapture = useCallback(() => {
+    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+
+    // Stop mic recognition
+    isListeningRef.current = false;
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+
+    // Stop system audio
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
     }
-    startRecognition(source);
-  }, [setupSystemAudio, startRecognition]);
+
+    if (systemStreamRef.current) {
+      const ctx = (systemStreamRef.current as any).__audioCtx as AudioContext | undefined;
+      const proc = (systemStreamRef.current as any).__processor as ScriptProcessorNode | undefined;
+      proc?.disconnect();
+      ctx?.close();
+      systemStreamRef.current.getTracks().forEach(t => t.stop());
+      systemStreamRef.current = null;
+    }
+
+    mediaRecorderRef.current?.stop();
+    mediaRecorderRef.current = null;
+
+    setIsCapturing(false);
+    sentenceBuffer.current = "";
+    console.log("All audio capture stopped");
+  }, []);
+
+  // ---- Public API ----
+  const startCapture = useCallback(async (source: AudioSource) => {
+    if (source === "microphone") {
+      startMicRecognition();
+    }
+    // system mode is handled via startWithSystemStream
+  }, [startMicRecognition]);
 
   const startWithSystemStream = useCallback(async (stream: MediaStream) => {
-    setupSystemAudio(stream);
-    await navigator.mediaDevices.getUserMedia({ audio: true });
-    startRecognition("system");
-  }, [setupSystemAudio, startRecognition]);
+    await startSystemCapture(stream);
+  }, [startSystemCapture]);
 
   const startFromStream = useCallback(async (_stream: MediaStream) => {
-    startRecognition("remote");
-  }, [startRecognition]);
+    startMicRecognition();
+  }, [startMicRecognition]);
 
   return {
     audioSource,
