@@ -7,7 +7,7 @@ import { Teleprompter } from "./Teleprompter";
 import { SidePanel } from "./SidePanel";
 import { SessionControls } from "./SessionControls";
 import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+
 
 interface SessionScreenProps {
   profile: UserProfile;
@@ -74,10 +74,25 @@ export function SessionScreen({ profile, initialAudioSource, mode, onEnd, remote
       if (initialAudioSource === "system" && systemStream) {
         try {
           // Fetch scribe token and connect
-          console.log("Fetching scribe token...");
-          const { data, error } = await supabase.functions.invoke("elevenlabs-scribe-token");
-          if (error || !data?.token) {
-            throw new Error(error?.message || "Failed to get transcription token");
+          console.log("Fetching scribe token via direct fetch...");
+          const res = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-scribe-token`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              },
+            }
+          );
+          if (!res.ok) {
+            const errText = await res.text();
+            console.error("Token fetch failed:", res.status, errText);
+            throw new Error(`Token fetch failed: ${res.status}`);
+          }
+          const data = await res.json();
+          if (!data?.token) {
+            throw new Error("No token in response");
           }
           console.log("Scribe token received, connecting...");
           await scribe.connect({ token: data.token });
