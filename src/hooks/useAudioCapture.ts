@@ -127,100 +127,80 @@ export function useAudioCapture(
   const systemStreamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  const startCapture = useCallback(async (source: AudioSource) => {
-    if (source === "system") {
-      // Use getDisplayMedia to capture system/tab audio (works even with headphones)
-      try {
-        const displayStream = await navigator.mediaDevices.getDisplayMedia({
-          video: true, // required by browser, we ignore it
-          audio: true, // this captures the tab/system audio
-        });
-
-        systemStreamRef.current = displayStream;
-
-        // Play the captured audio through speakers so user can still hear the call
-        // AND so Web Speech API (which listens via mic) can pick it up
-        const audioCtx = new AudioContext();
-        audioContextRef.current = audioCtx;
-        const mediaSource = audioCtx.createMediaStreamSource(displayStream);
-        
-        // Create a gain node to control volume sent to speakers
-        const gainNode = audioCtx.createGain();
-        gainNode.gain.value = 1.0;
-        mediaSource.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-
-        // Stop video tracks - we only need audio
-        displayStream.getVideoTracks().forEach(t => t.stop());
-
-        // Handle user stopping the share
-        displayStream.getAudioTracks().forEach(track => {
-          track.onended = () => {
-            console.log("System audio share stopped by user");
-            stopCapture();
-          };
-        });
-
-        // Also request mic for Web Speech API
-        await navigator.mediaDevices.getUserMedia({ audio: true });
-      } catch (e: any) {
-        console.error("Failed to capture system audio:", e);
-        throw new Error("System audio capture cancelled or not supported. Try sharing a tab with 'Share tab audio' checked.");
-      }
-    }
-
-    if (!recognitionRef.current) {
-      recognitionRef.current = initRecognition();
-    }
-
-    if (!isListeningRef.current) {
-      isListeningRef.current = true;
-      recognitionRef.current.start();
-    }
-
-    setIsCapturing(true);
-    setAudioSource(source);
-    console.log(`Speech recognition started (${source} mode)`);
-  }, [initRecognition]);
-
-  const startFromStream = useCallback(async (_stream: MediaStream) => {
-    // For remote streams, we use Web Speech API listening to the mic
-    // The remote audio plays through speakers, mic picks it up
-    if (!recognitionRef.current) {
-      recognitionRef.current = initRecognition();
-    }
-
-    if (!isListeningRef.current) {
-      isListeningRef.current = true;
-      recognitionRef.current.start();
-    }
-
-    setIsCapturing(true);
-    setAudioSource("remote");
-    console.log("Speech recognition started (remote mode)");
-  }, [initRecognition]);
-
   const stopCapture = useCallback(() => {
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
     isListeningRef.current = false;
     recognitionRef.current?.stop();
     recognitionRef.current = null;
-    
-    // Clean up system audio capture
     systemStreamRef.current?.getTracks().forEach(t => t.stop());
     systemStreamRef.current = null;
     audioContextRef.current?.close();
     audioContextRef.current = null;
-    
     setIsCapturing(false);
     sentenceBuffer.current = "";
     console.log("Speech recognition stopped");
   }, []);
 
+  const startRecognition = useCallback((source: AudioSource) => {
+    if (!recognitionRef.current) {
+      recognitionRef.current = initRecognition();
+    }
+    if (!isListeningRef.current) {
+      isListeningRef.current = true;
+      recognitionRef.current.start();
+    }
+    setIsCapturing(true);
+    setAudioSource(source);
+    console.log(`Speech recognition started (${source} mode)`);
+  }, [initRecognition]);
+
+  const setupSystemAudio = useCallback((stream: MediaStream) => {
+    systemStreamRef.current = stream;
+    const audioCtx = new AudioContext();
+    audioContextRef.current = audioCtx;
+    const mediaSource = audioCtx.createMediaStreamSource(stream);
+    const gainNode = audioCtx.createGain();
+    gainNode.gain.value = 1.0;
+    mediaSource.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    stream.getAudioTracks().forEach(track => {
+      track.onended = () => {
+        console.log("System audio share stopped by user");
+        stopCapture();
+      };
+    });
+  }, [stopCapture]);
+
+  const startCapture = useCallback(async (source: AudioSource) => {
+    if (source === "system") {
+      try {
+        const displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+        displayStream.getVideoTracks().forEach(t => t.stop());
+        setupSystemAudio(displayStream);
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (e: any) {
+        console.error("Failed to capture system audio:", e);
+        throw new Error("System audio capture cancelled or not supported.");
+      }
+    }
+    startRecognition(source);
+  }, [setupSystemAudio, startRecognition]);
+
+  const startWithSystemStream = useCallback(async (stream: MediaStream) => {
+    setupSystemAudio(stream);
+    await navigator.mediaDevices.getUserMedia({ audio: true });
+    startRecognition("system");
+  }, [setupSystemAudio, startRecognition]);
+
+  const startFromStream = useCallback(async (_stream: MediaStream) => {
+    startRecognition("remote");
+  }, [startRecognition]);
+
   return {
     audioSource,
     isCapturing,
     startCapture,
+    startWithSystemStream,
     startFromStream,
     stopCapture,
     setAudioSource,

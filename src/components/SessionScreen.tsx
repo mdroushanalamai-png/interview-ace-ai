@@ -13,9 +13,10 @@ interface SessionScreenProps {
   mode: SessionMode;
   onEnd: () => void;
   remoteStream?: MediaStream;
+  systemStream?: MediaStream;
 }
 
-export function SessionScreen({ profile, initialAudioSource, mode, onEnd, remoteStream }: SessionScreenProps) {
+export function SessionScreen({ profile, initialAudioSource, mode, onEnd, remoteStream, systemStream }: SessionScreenProps) {
   const [sidePanelOpen, setSidePanelOpen] = useState(false);
   const session = useSession(profile);
 
@@ -38,19 +39,16 @@ export function SessionScreen({ profile, initialAudioSource, mode, onEnd, remote
     session.startSession();
     if (initialAudioSource === "remote" && remoteStream) {
       audio.startFromStream(remoteStream).catch(e => {
-        toast({
-          variant: "destructive",
-          title: "Audio Error",
-          description: e.message || "Failed to start remote audio",
-        });
+        toast({ variant: "destructive", title: "Audio Error", description: e.message || "Failed to start remote audio" });
+      });
+    } else if (initialAudioSource === "system" && systemStream) {
+      // System stream already captured from user gesture in SetupPage
+      audio.startWithSystemStream(systemStream).catch(e => {
+        toast({ variant: "destructive", title: "Audio Error", description: e.message || "Failed to start system audio" });
       });
     } else {
       audio.startCapture(initialAudioSource).catch(e => {
-        toast({
-          variant: "destructive",
-          title: "Audio Error",
-          description: e.message || "Failed to start audio capture",
-        });
+        toast({ variant: "destructive", title: "Audio Error", description: e.message || "Failed to start audio capture" });
       });
     }
 

@@ -12,11 +12,13 @@ const Index = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [audioSource, setAudioSource] = useState<AudioSource>("microphone");
   const [sessionMode, setSessionMode] = useState<SessionMode>("interview");
+  const [systemStream, setSystemStream] = useState<MediaStream | null>(null);
 
-  const handleStart = (p: UserProfile, source: AudioSource, sMode: SessionMode) => {
+  const handleStart = (p: UserProfile, source: AudioSource, sMode: SessionMode, stream?: MediaStream) => {
     setProfile(p);
     setAudioSource(source);
     setSessionMode(sMode);
+    if (stream) setSystemStream(stream);
     setMode("session");
   };
 
@@ -34,7 +36,8 @@ const Index = () => {
         profile={profile}
         initialAudioSource={audioSource}
         mode={sessionMode}
-        onEnd={() => setMode("setup")}
+        onEnd={() => { setMode("setup"); setSystemStream(null); }}
+        systemStream={systemStream || undefined}
       />
     );
   }
